@@ -62,6 +62,7 @@ export function initDatabase() {
       reserved_quantity REAL NOT NULL CHECK(reserved_quantity > 0),
       total_price REAL NOT NULL,
       reservation_method TEXT CHECK(reservation_method IN ('in_app', 'email')) DEFAULT 'in_app',
+      status TEXT CHECK(status IN ('pending', 'accepted', 'denied')) DEFAULT 'pending',
       notes TEXT,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE,
@@ -97,6 +98,12 @@ export function initDatabase() {
 
   try {
     db.exec(`ALTER TABLE reservations ADD COLUMN reservation_method TEXT DEFAULT 'in_app'`);
+  } catch (e) {
+    // Column already exists
+  }
+
+  try {
+    db.exec(`ALTER TABLE reservations ADD COLUMN status TEXT DEFAULT 'pending'`);
   } catch (e) {
     // Column already exists
   }

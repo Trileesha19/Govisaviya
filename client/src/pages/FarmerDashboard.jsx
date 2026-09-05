@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sprout, ShoppingBag, PlusCircle, Edit3, Trash2, MapPin, Phone, Mail, Calendar, Clock, CheckCircle2, AlertCircle, MessageSquare, User } from 'lucide-react';
+import { Sprout, ShoppingBag, PlusCircle, Edit3, Trash2, MapPin, Phone, Mail, Calendar, Clock, CheckCircle2, AlertCircle, MessageSquare, User, X } from 'lucide-react';
 import { apiFetch } from '../services/api';
 import ListingFormModal from '../components/ListingFormModal';
 
@@ -48,6 +48,19 @@ export default function FarmerDashboard({ onShowToast }) {
       fetchData();
     } catch (err) {
       onShowToast(err.message || 'Failed to delete listing.', 'error');
+    }
+  };
+
+  const handleReservationStatus = async (reservationId, status) => {
+    try {
+      const res = await apiFetch(`/reservations/${reservationId}/status`, {
+        method: 'PUT',
+        body: { status }
+      });
+      onShowToast(res.message);
+      fetchData();
+    } catch (err) {
+      onShowToast(err.message || 'Failed to update reservation status.', 'error');
     }
   };
 
@@ -230,6 +243,13 @@ export default function FarmerDashboard({ onShowToast }) {
                       }`}>
                         {resv.reservation_method === 'email' ? '✉️ Email Inquiry' : '⚡ Via App'}
                       </span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${
+                        resv.status === 'accepted' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
+                        resv.status === 'denied' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' :
+                        'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                      }`}>
+                        {resv.status === 'accepted' ? '✅ Accepted' : resv.status === 'denied' ? '❌ Declined' : '⏳ Pending Confirmation'}
+                      </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
                       <span className="flex items-center space-x-1 text-slate-200">
@@ -258,15 +278,56 @@ export default function FarmerDashboard({ onShowToast }) {
                     )}
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <span className="text-[10px] text-slate-400 block font-semibold uppercase">Total Reservation Value</span>
-                    <div className="text-xl font-extrabold text-emerald-400">
-                      LKR {resv.total_price.toLocaleString()}
+                  <div className="text-right shrink-0 space-y-2">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-semibold uppercase">Total Reservation Value</span>
+                      <div className="text-xl font-extrabold text-emerald-400">
+                        LKR {resv.total_price.toLocaleString()}
+                      </div>
+                      <span className="text-[10px] text-slate-500 flex items-center justify-end space-x-1 mt-1">
+                        <Calendar className="w-3 h-3" />
+                        <span>{new Date(resv.timestamp).toLocaleString()}</span>
+                      </span>
                     </div>
-                    <span className="text-[10px] text-slate-500 flex items-center justify-end space-x-1 mt-1">
-                      <Calendar className="w-3 h-3" />
-                      <span>{new Date(resv.timestamp).toLocaleString()}</span>
-                    </span>
+
+                    {/* Accept / Decline Actions */}
+                    <div className="flex items-center justify-end space-x-2 pt-1">
+                      {(!resv.status || resv.status === 'pending') ? (
+                        <>
+                          <button
+                            onClick={() => handleReservationStatus(resv.id, 'accepted')}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center space-x-1 shadow-md shadow-emerald-500/20 transition-all"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Accept Order</span>
+                          </button>
+                          <button
+                            onClick={() => handleReservationStatus(resv.id, 'denied')}
+                            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-rose-300 hover:border-rose-500/30 text-xs font-bold flex items-center space-x-1 transition-all"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Decline Order</span>
+                          </button>
+                        </>
+                      ) : resv.status === 'accepted' ? (
+                        <button
+                          onClick={() => handleReservationStatus(resv.id, 'denied')}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-rose-500/20 text-rose-300 text-[11px] font-semibold flex items-center space-x-1 transition-all"
+                        >
+                          <X className="w-3 h-3" />
+                          <span>Change to Decline</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleReservationStatus(resv.id, 'accepted')}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-emerald-500/20 text-emerald-300 text-[11px] font-semibold flex items-center space-x-1 transition-all"
+                        >
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Change to Accept</span>
+                        </button>
+                      )}
+                    </div>
+
                   </div>
                 </div>
               ))}

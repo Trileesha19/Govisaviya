@@ -46,10 +46,10 @@ router.post('/', authenticateToken, requireRole('buyer'), (req, res) => {
         WHERE id = ?
       `).run(newAvailableQty, newStatus, listing.id);
 
-      // 2. Insert reservation record with reservation_method
+      // 2. Insert reservation record with reservation_method and default status 'pending'
       const result = db.prepare(`
-        INSERT INTO reservations (listing_id, buyer_id, reserved_quantity, total_price, reservation_method, notes)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO reservations (listing_id, buyer_id, reserved_quantity, total_price, reservation_method, status, notes)
+        VALUES (?, ?, ?, ?, ?, 'pending', ?)
       `).run(listing.id, req.user.id, qtyToReserve, totalPrice, method, notes ? notes.trim() : null);
 
       // 3. Fetch detailed reservation response
@@ -101,7 +101,7 @@ router.post('/', authenticateToken, requireRole('buyer'), (req, res) => {
     const channelText = method === 'email' ? 'via Email Inquiry' : 'via App';
 
     res.status(201).json({
-      message: `Successfully reserved ${qtyToReserve} ${data.reservation.unit} of ${data.reservation.crop_name} (${channelText})!`,
+      message: `Successfully reserved ${qtyToReserve} ${data.reservation.unit} of ${data.reservation.crop_name} (${channelText})! Waiting for farmer confirmation.`,
       reservation: data.reservation,
       remainingQuantity: data.remainingQuantity,
       listingStatus: data.updatedStatus,
@@ -117,6 +117,114 @@ router.post('/', authenticateToken, requireRole('buyer'), (req, res) => {
       return res.status(400).json({ error: err.message.replace(/^[A-Z_]+: /, '') });
     }
     res.status(500).json({ error: 'Failed to process reservation.' });
+  }
+});
+
+// PUT update reservation status (Farmer only, accept or deny order)
+router.put('/:id/status', authenticateToken, requireRole('farmer'), (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['accepted', 'denied'].includes(status)) {
+      return res.status(400).json({ error: 'Status must be either "accepted" or "denied".' });
+    }
+
+    const updateReservationStatus = db.transaction(() => {
+      const reservation = db.prepare(`
+        SELECT r.*, 
+               l.farmer_id, l.crop_name, l.unit, l.quantity as current_listing_qty, l.initial_quantity,
+               f.name as farmer_name,
+               b.id as buyer_id, b.name as buyer_name, b.email as buyer_email
+        FROM reservations r
+        JOIN listings l ON r.listing_id = l.id
+        JOIN users f ON l.farmer_id = f.id
+        JOIN users b ON r.buyer_id = b.id
+        WHERE r.id = ?
+      `).get(id);
+
+      if (!reservation) {
+        throw new Error('NOT_FOUND: Reservation not found.');
+      }
+
+      if (reservation.farmer_id !== req.user.id) {
+        throw new Error('FORBIDDEN: You can only accept or deny reservations for your own produce listings.');
+      }
+
+      if (reservation.status === status) {
+        throw new Error(`ALREADY_SET: Order is already marked as ${status}.`);
+      }
+
+      const prevStatus = reservation.status;
+
+      // 1. Update reservation status
+      db.prepare('UPDATE reservations SET status = ? WHERE id = ?').run(status, id);
+
+      // 2. If denied, restore stock quantity to listing
+      if (status === 'denied' && prevStatus !== 'denied') {
+        const restoredQty = reservation.current_listing_qty + reservation.reserved_quantity;
+        const newListingStatus = restoredQty >= reservation.initial_quantity ? 'available' : 'partially_reserved';
+
+        db.prepare(`
+          UPDATE listings
+          SET quantity = ?, status = ?
+          WHERE id = ?
+        `).run(restoredQty, newListingStatus, reservation.listing_id);
+      }
+
+      // 3. Insert direct system notification message for the buyer
+      const actionText = status === 'accepted' ? 'ACCEPTED ✅' : 'DECLINED ❌';
+      const detailMessage = status === 'accepted'
+        ? `Great news! Farmer ${reservation.farmer_name} has ACCEPTED your reservation of ${reservation.reserved_quantity} ${reservation.unit} for "${reservation.crop_name}". Please contact the farmer to finalize collection/delivery.`
+        : `Farmer ${reservation.farmer_name} has DECLINED your reservation of ${reservation.reserved_quantity} ${reservation.unit} for "${reservation.crop_name}". The reserved stock quantity has been restored to the marketplace.`;
+
+      db.prepare(`
+        INSERT INTO messages (farmer_id, buyer_id, listing_id, subject, message)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(
+        req.user.id,
+        reservation.buyer_id,
+        reservation.listing_id,
+        `Order Update: ${actionText} for ${reservation.crop_name}`,
+        detailMessage
+      );
+
+      const updatedReservation = db.prepare(`
+        SELECT r.*, 
+               l.crop_name, l.unit, l.price as unit_price, l.location as listing_location, l.image_emoji,
+               b.name as buyer_name, b.email as buyer_email, b.phone as buyer_phone, b.location as buyer_location
+        FROM reservations r
+        JOIN listings l ON r.listing_id = l.id
+        JOIN users b ON r.buyer_id = b.id
+        WHERE r.id = ?
+      `).get(id);
+
+      return updatedReservation;
+    });
+
+    const updated = updateReservationStatus();
+
+    const responseMsg = status === 'accepted'
+      ? `Order accepted successfully! Buyer ${updated.buyer_name} has been notified.`
+      : `Order declined. Stock restored to marketplace and buyer ${updated.buyer_name} notified.`;
+
+    res.json({
+      message: responseMsg,
+      reservation: updated
+    });
+
+  } catch (err) {
+    console.error('Update reservation status error:', err.message);
+    if (err.message.startsWith('NOT_FOUND:')) {
+      return res.status(404).json({ error: err.message.replace('NOT_FOUND: ', '') });
+    }
+    if (err.message.startsWith('FORBIDDEN:')) {
+      return res.status(403).json({ error: err.message.replace('FORBIDDEN: ', '') });
+    }
+    if (err.message.startsWith('ALREADY_SET:')) {
+      return res.status(400).json({ error: err.message.replace('ALREADY_SET: ', '') });
+    }
+    res.status(500).json({ error: 'Failed to update reservation status.' });
   }
 });
 

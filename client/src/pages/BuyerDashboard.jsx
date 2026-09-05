@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Sprout, MapPin, Phone, Mail, Calendar, CheckCircle2, Star } from 'lucide-react';
+import { ShoppingBag, Sprout, MapPin, Phone, Mail, Calendar, CheckCircle2, AlertCircle, Clock, Star } from 'lucide-react';
 import { apiFetch } from '../services/api';
 
 export default function BuyerDashboard({ onShowToast, onOpenReviewModal }) {
@@ -113,9 +113,27 @@ export default function BuyerDashboard({ onShowToast, onOpenReviewModal }) {
 
               <div className="text-right shrink-0 space-y-1">
                 <div className="flex flex-col items-end gap-1">
-                  <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                    <CheckCircle2 className="w-3 h-3" />
-                    <span>Reservation Confirmed</span>
+                  <span className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                    resv.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
+                    resv.status === 'denied' ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' :
+                    'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                  }`}>
+                    {resv.status === 'accepted' ? (
+                      <>
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Accepted by Farmer</span>
+                      </>
+                    ) : resv.status === 'denied' ? (
+                      <>
+                        <AlertCircle className="w-3 h-3" />
+                        <span>Declined by Farmer</span>
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="w-3 h-3" />
+                        <span>Pending Farmer Approval</span>
+                      </>
+                    )}
                   </span>
                   <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase ${
                     resv.reservation_method === 'email'
