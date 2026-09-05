@@ -85,6 +85,12 @@ export default function ListingFormModal({ listingToEdit, onClose, onSuccess }) 
         });
       }
 
+      if (result.listing) {
+        const custom = JSON.parse(localStorage.getItem('govisaviya_custom_listings') || '[]');
+        const updatedList = [result.listing, ...custom.filter(l => l.id !== result.listing.id)];
+        localStorage.setItem('govisaviya_custom_listings', JSON.stringify(updatedList));
+      }
+
       onSuccess(result.message);
       onClose();
     } catch (err) {

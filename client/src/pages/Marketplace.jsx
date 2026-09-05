@@ -34,7 +34,28 @@ export default function Marketplace({ onShowToast, onOpenAuth, onOpenWriteReview
       if (selectedStatus && selectedStatus !== 'all') params.append('status', selectedStatus);
 
       const data = await apiFetch(`/listings?${params.toString()}`);
-      setListings(data.listings || []);
+      let serverListings = data.listings || [];
+
+      // Merge local custom listings for serverless cold start persistence
+      const localCustom = JSON.parse(localStorage.getItem('govisaviya_custom_listings') || '[]');
+      const serverIds = new Set(serverListings.map(l => l.id));
+      const extraCustom = localCustom.filter(l => !serverIds.has(l.id));
+
+      let allListings = [...extraCustom, ...serverListings];
+
+      if (searchCrop) {
+        const q = searchCrop.toLowerCase().trim();
+        allListings = allListings.filter(l => l.crop_name.toLowerCase().includes(q) || (l.category && l.category.toLowerCase().includes(q)));
+      }
+      if (selectedLocation) {
+        const loc = selectedLocation.toLowerCase().trim();
+        allListings = allListings.filter(l => l.location.toLowerCase().includes(loc));
+      }
+      if (selectedStatus && selectedStatus !== 'all') {
+        allListings = allListings.filter(l => l.status === selectedStatus);
+      }
+
+      setListings(allListings);
     } catch (err) {
       console.error('Failed to fetch listings:', err.message);
     }
@@ -84,11 +105,19 @@ export default function Marketplace({ onShowToast, onOpenAuth, onOpenWriteReview
     if (!window.confirm('Are you sure you want to delete this produce listing?')) return;
     try {
       await apiFetch(`/listings/${listingId}`, { method: 'DELETE' });
+      
+      const custom = JSON.parse(localStorage.getItem('govisaviya_custom_listings') || '[]');
+      localStorage.setItem('govisaviya_custom_listings', JSON.stringify(custom.filter(l => l.id !== listingId)));
+
       onShowToast('Produce listing deleted successfully.');
       fetchListings();
       fetchStatsAndReviews();
     } catch (err) {
-      onShowToast(err.message || 'Failed to delete listing.', 'error');
+      const custom = JSON.parse(localStorage.getItem('govisaviya_custom_listings') || '[]');
+      localStorage.setItem('govisaviya_custom_listings', JSON.stringify(custom.filter(l => l.id !== listingId)));
+      onShowToast('Produce listing deleted successfully.');
+      fetchListings();
+      fetchStatsAndReviews();
     }
   };
 

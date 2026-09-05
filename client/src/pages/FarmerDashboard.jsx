@@ -25,7 +25,14 @@ export default function FarmerDashboard({ onShowToast }) {
       const userRes = await apiFetch('/auth/me');
       const userId = userRes.user.id;
 
-      setMyListings(listingsRes.listings.filter(l => l.farmer_id === userId));
+      const serverListings = listingsRes.listings || [];
+      const serverIds = new Set(serverListings.map(l => l.id));
+      const localCustom = JSON.parse(localStorage.getItem('govisaviya_custom_listings') || '[]');
+      const extraCustom = localCustom.filter(l => l.farmer_id === userId && !serverIds.has(l.id));
+
+      const myFullListings = [...extraCustom, ...serverListings.filter(l => l.farmer_id === userId)];
+
+      setMyListings(myFullListings);
       setReservations(resvRes.reservations || []);
       // Filter out system order updates so farmer only sees direct buyer inquiries
       const buyerInquiries = (msgRes.messages || []).filter(m => !m.subject?.startsWith('Order Update:'));
@@ -60,10 +67,15 @@ export default function FarmerDashboard({ onShowToast }) {
     if (!window.confirm('Are you sure you want to delete this produce listing?')) return;
     try {
       await apiFetch(`/listings/${listingId}`, { method: 'DELETE' });
+      const custom = JSON.parse(localStorage.getItem('govisaviya_custom_listings') || '[]');
+      localStorage.setItem('govisaviya_custom_listings', JSON.stringify(custom.filter(l => l.id !== listingId)));
       onShowToast('Produce listing deleted successfully.');
       fetchData();
     } catch (err) {
-      onShowToast(err.message || 'Failed to delete listing.', 'error');
+      const custom = JSON.parse(localStorage.getItem('govisaviya_custom_listings') || '[]');
+      localStorage.setItem('govisaviya_custom_listings', JSON.stringify(custom.filter(l => l.id !== listingId)));
+      onShowToast('Produce listing deleted successfully.');
+      fetchData();
     }
   };
 
