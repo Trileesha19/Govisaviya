@@ -75,8 +75,9 @@ router.post('/', authenticateToken, requireRole('buyer'), (req, res) => {
   try {
     const { farmer_id, listing_id, rating, comment } = req.body;
 
-    if (!farmer_id || rating === undefined || !comment) {
-      return res.status(400).json({ error: 'Farmer ID, rating, and comment are required.' });
+    const numFarmerId = Number(farmer_id);
+    if (!farmer_id || isNaN(numFarmerId) || rating === undefined || !comment || !comment.trim()) {
+      return res.status(400).json({ error: 'Farmer ID, rating, and review comment are required.' });
     }
 
     const numRating = Number(rating);
@@ -84,9 +85,9 @@ router.post('/', authenticateToken, requireRole('buyer'), (req, res) => {
       return res.status(400).json({ error: 'Rating must be an integer between 1 and 5 stars.' });
     }
 
-    const farmer = db.prepare("SELECT id, name FROM users WHERE id = ? AND role = 'farmer'").get(farmer_id);
+    const farmer = db.prepare("SELECT id, name FROM users WHERE id = ? AND role = 'farmer'").get(numFarmerId);
     if (!farmer) {
-      return res.status(404).json({ error: 'Farmer not found.' });
+      return res.status(404).json({ error: 'Farmer not found in system.' });
     }
 
     const stmt = db.prepare(`
@@ -95,9 +96,9 @@ router.post('/', authenticateToken, requireRole('buyer'), (req, res) => {
     `);
 
     const result = stmt.run(
-      farmer_id,
+      numFarmerId,
       req.user.id,
-      listing_id || null,
+      listing_id ? Number(listing_id) : null,
       Math.round(numRating),
       comment.trim()
     );
@@ -116,7 +117,7 @@ router.post('/', authenticateToken, requireRole('buyer'), (req, res) => {
         COUNT(*) as total_reviews
       FROM reviews
       WHERE farmer_id = ?
-    `).get(farmer_id);
+    `).get(numFarmerId);
 
     res.status(201).json({
       message: `Review submitted for ${farmer.name}! Thank you for supporting Sri Lankan farmers.`,

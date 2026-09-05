@@ -61,7 +61,7 @@ export default function FarmerReviewsModal({ farmerId, farmerName, onClose, onOp
               </p>
               {onOpenWriteReview && (
                 <button
-                  onClick={() => { onClose(); onOpenWriteReview(); }}
+                  onClick={() => onOpenWriteReview(farmerId, farmerName)}
                   className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 text-slate-950 hover:bg-amber-400 transition-all"
                 >
                   Write First Review
@@ -145,7 +145,7 @@ export default function FarmerReviewsModal({ farmerId, farmerName, onClose, onOp
           <span className="text-xs text-slate-400">UN SDG 2 Zero Hunger Trust Network</span>
           {onOpenWriteReview && (
             <button
-              onClick={() => { onClose(); onOpenWriteReview(); }}
+              onClick={() => onOpenWriteReview(farmerId, farmerName)}
               className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 text-slate-950 hover:bg-amber-400 transition-all"
             >
               + Rate Farmer

@@ -47,7 +47,15 @@ function MainApp() {
             onShowToast={showToast}
             onOpenAuth={(mode) => setAuthModalMode(mode)}
             onOpenWriteReviewModal={(data) => {
-              if (!user) { setAuthModalMode('login'); return; }
+              if (!user) {
+                showToast('Please log in or register as a Buyer to rate Sri Lankan farmers.', 'error');
+                setAuthModalMode('login');
+                return;
+              }
+              if (user.role !== 'buyer') {
+                showToast('You are signed in as a Farmer. Only registered buyers can post reviews.', 'error');
+                return;
+              }
               setReviewModalData(data);
             }}
             onViewFarmerReviewsModal={(farmerId, farmerName) => setFarmerReviewsModalData({ farmerId, farmerName })}
@@ -134,7 +142,10 @@ function MainApp() {
           listingId={reviewModalData.listingId}
           cropName={reviewModalData.cropName}
           onClose={() => setReviewModalData(null)}
-          onSuccess={(msg) => showToast(msg)}
+          onSuccess={(msg) => {
+            showToast(msg);
+            window.dispatchEvent(new Event('govisaviya_review_submitted'));
+          }}
         />
       )}
 
@@ -144,9 +155,20 @@ function MainApp() {
           farmerId={farmerReviewsModalData.farmerId}
           farmerName={farmerReviewsModalData.farmerName}
           onClose={() => setFarmerReviewsModalData(null)}
-          onOpenWriteReview={() => {
-            if (!user) { setAuthModalMode('login'); return; }
-            setReviewModalData({ farmerId: farmerReviewsModalData.farmerId, farmerName: farmerReviewsModalData.farmerName });
+          onOpenWriteReview={(targetId, targetName) => {
+            const fId = targetId || farmerReviewsModalData?.farmerId;
+            const fName = targetName || farmerReviewsModalData?.farmerName;
+            setFarmerReviewsModalData(null);
+            if (!user) {
+              showToast('Please log in or register as a Buyer to rate Sri Lankan farmers.', 'error');
+              setAuthModalMode('login');
+              return;
+            }
+            if (user.role !== 'buyer') {
+              showToast('You are signed in as a Farmer. Only registered buyers can post reviews.', 'error');
+              return;
+            }
+            setReviewModalData({ farmerId: fId, farmerName: fName });
           }}
         />
       )}

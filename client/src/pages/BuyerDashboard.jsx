@@ -34,11 +34,18 @@ export default function BuyerDashboard({ onShowToast, onOpenReviewModal }) {
     const handleFocus = () => {
       fetchBuyerData();
     };
+
+    const handleReviewSubmitted = () => {
+      fetchBuyerData();
+    };
+
     window.addEventListener('focus', handleFocus);
+    window.addEventListener('govisaviya_review_submitted', handleReviewSubmitted);
 
     return () => {
       clearInterval(timer);
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('govisaviya_review_submitted', handleReviewSubmitted);
     };
   }, []);
 

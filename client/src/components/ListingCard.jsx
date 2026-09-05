@@ -2,7 +2,7 @@ import React from 'react';
 import { MapPin, Calendar, User, ShoppingBag, Edit3, Trash2, CheckCircle2, AlertCircle, Clock, Mail, Star, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export default function ListingCard({ listing, onReserve, onEdit, onDelete, onOpenAuth, reviewsSummary, onViewReviews, onOpenContactFarmer }) {
+export default function ListingCard({ listing, onReserve, onEdit, onDelete, onOpenAuth, reviewsSummary, onViewReviews, onOpenWriteReview, onOpenContactFarmer }) {
   const { user } = useAuth();
   
   const isOwner = user?.role === 'farmer' && user?.id === listing.farmer_id;
@@ -151,6 +151,15 @@ export default function ListingCard({ listing, onReserve, onEdit, onDelete, onOp
             </div>
           ) : user?.role === 'buyer' ? (
             <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => onOpenWriteReview && onOpenWriteReview(listing.farmer_id, listing.farmer_name, listing.id, listing.crop_name)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-slate-700 hover:border-amber-500/40 transition-all flex items-center justify-center"
+                title={`Rate & review farmer (${listing.farmer_name})`}
+              >
+                <Star className="w-4 h-4 text-amber-400" />
+              </button>
+
               <button
                 type="button"
                 onClick={() => onOpenContactFarmer && onOpenContactFarmer(listing.farmer_id, listing.farmer_name, listing.id, listing.crop_name)}

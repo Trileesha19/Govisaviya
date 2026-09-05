@@ -77,7 +77,7 @@ export default function Marketplace({ onShowToast, onOpenAuth, onOpenWriteReview
   useEffect(() => {
     Promise.all([fetchListings(), fetchStatsAndReviews()]).finally(() => setLoading(false));
 
-    // Auto-polling every 4 seconds so stock changes update live without page refresh
+    // Auto-polling every 4 seconds so stock changes and ratings update live without page refresh
     const timer = setInterval(() => {
       fetchListings();
       fetchStatsAndReviews();
@@ -87,11 +87,19 @@ export default function Marketplace({ onShowToast, onOpenAuth, onOpenWriteReview
       fetchListings();
       fetchStatsAndReviews();
     };
+
+    const handleReviewSubmitted = () => {
+      fetchStatsAndReviews();
+      fetchListings();
+    };
+
     window.addEventListener('focus', handleFocus);
+    window.addEventListener('govisaviya_review_submitted', handleReviewSubmitted);
 
     return () => {
       clearInterval(timer);
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('govisaviya_review_submitted', handleReviewSubmitted);
     };
   }, [searchCrop, selectedLocation, selectedStatus]);
 
@@ -217,6 +225,7 @@ export default function Marketplace({ onShowToast, onOpenAuth, onOpenWriteReview
               onOpenAuth={onOpenAuth}
               reviewsSummary={reviewsSummary}
               onViewReviews={(fId, fName) => onViewFarmerReviewsModal && onViewFarmerReviewsModal(fId, fName)}
+              onOpenWriteReview={(fId, fName, lId, cName) => onOpenWriteReviewModal && onOpenWriteReviewModal({ farmerId: fId, farmerName: fName, listingId: lId, cropName: cName })}
               onOpenContactFarmer={(fId, fName, lId, cName) => onOpenContactFarmer && onOpenContactFarmer(fId, fName, lId, cName)}
             />
           ))}

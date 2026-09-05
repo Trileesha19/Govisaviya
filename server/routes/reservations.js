@@ -261,7 +261,7 @@ router.get('/buyer', authenticateToken, requireRole('buyer'), (req, res) => {
   try {
     const reservations = db.prepare(`
       SELECT r.*, 
-             l.crop_name, l.unit, l.price as unit_price, l.location as produce_location, l.image_emoji,
+             l.farmer_id, l.crop_name, l.unit, l.price as unit_price, l.location as produce_location, l.image_emoji,
              f.name as farmer_name, f.email as farmer_email, f.phone as farmer_phone, f.location as farmer_location
       FROM reservations r
       JOIN listings l ON r.listing_id = l.id
