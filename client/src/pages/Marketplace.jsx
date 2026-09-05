@@ -70,10 +70,24 @@ export default function Marketplace({ onShowToast, onOpenAuth, onOpenWriteReview
       await apiFetch(`/listings/${listingId}`, { method: 'DELETE' });
       onShowToast('Produce listing deleted successfully.');
       fetchListings();
-      fetchStats();
+      fetchStatsAndReviews();
     } catch (err) {
       onShowToast(err.message || 'Failed to delete listing.', 'error');
     }
+  };
+
+  const handleAddListingClick = () => {
+    if (!user) {
+      onShowToast('Please log in or register as a Farmer to list your crop harvest.', 'error');
+      onOpenAuth('login');
+      return;
+    }
+    if (user.role !== 'farmer') {
+      onShowToast('You are currently signed in as a Buyer. Only Farmers can publish produce listings.', 'error');
+      return;
+    }
+    setListingFormToEdit(null);
+    setShowCreateForm(true);
   };
 
   return (
@@ -93,15 +107,13 @@ export default function Marketplace({ onShowToast, onOpenAuth, onOpenWriteReview
           </p>
         </div>
 
-        {user?.role === 'farmer' && (
-          <button
-            onClick={() => { setListingFormToEdit(null); setShowCreateForm(true); }}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center space-x-2 shrink-0 hover:scale-[1.02]"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>List New Crop Harvest</span>
-          </button>
-        )}
+        <button
+          onClick={handleAddListingClick}
+          className="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center space-x-2 shrink-0 hover:scale-[1.02]"
+        >
+          <PlusCircle className="w-4 h-4" />
+          <span>List New Crop Harvest</span>
+        </button>
       </div>
 
       {/* Interactive Search & Filter Controls */}
@@ -174,7 +186,7 @@ export default function Marketplace({ onShowToast, onOpenAuth, onOpenWriteReview
           onSuccess={(msg) => {
             onShowToast(msg);
             fetchListings();
-            fetchStats();
+            fetchStatsAndReviews();
           }}
         />
       )}
@@ -187,7 +199,7 @@ export default function Marketplace({ onShowToast, onOpenAuth, onOpenWriteReview
           onSuccess={(msg) => {
             onShowToast(msg);
             fetchListings();
-            fetchStats();
+            fetchStatsAndReviews();
           }}
         />
       )}

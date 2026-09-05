@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sprout, ShoppingBag, PlusCircle, Edit3, Trash2, MapPin, Phone, Mail, Calendar, Clock, CheckCircle2, AlertCircle, MessageSquare } from 'lucide-react';
+import { Sprout, ShoppingBag, PlusCircle, Edit3, Trash2, MapPin, Phone, Mail, Calendar, Clock, CheckCircle2, AlertCircle, MessageSquare, User } from 'lucide-react';
 import { apiFetch } from '../services/api';
 import ListingFormModal from '../components/ListingFormModal';
 
