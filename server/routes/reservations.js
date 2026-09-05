@@ -126,6 +126,11 @@ router.put('/:id/status', authenticateToken, requireRole('farmer'), (req, res) =
     const { id } = req.params;
     const { status } = req.body;
 
+    const targetId = Number(id);
+    if (isNaN(targetId)) {
+      return res.status(400).json({ error: 'Invalid reservation ID format.' });
+    }
+
     if (!['accepted', 'denied'].includes(status)) {
       return res.status(400).json({ error: 'Status must be either "accepted" or "denied".' });
     }
@@ -133,21 +138,21 @@ router.put('/:id/status', authenticateToken, requireRole('farmer'), (req, res) =
     const updateReservationStatus = db.transaction(() => {
       const reservation = db.prepare(`
         SELECT r.*, 
-               l.farmer_id, l.crop_name, l.unit, l.quantity as current_listing_qty, l.initial_quantity,
+               l.farmer_id, l.crop_name, l.unit, COALESCE(l.quantity, 0) as current_listing_qty, COALESCE(l.initial_quantity, 0) as initial_quantity,
                f.name as farmer_name,
                b.id as buyer_id, b.name as buyer_name, b.email as buyer_email
         FROM reservations r
-        JOIN listings l ON r.listing_id = l.id
-        JOIN users f ON l.farmer_id = f.id
-        JOIN users b ON r.buyer_id = b.id
+        LEFT JOIN listings l ON r.listing_id = l.id
+        LEFT JOIN users f ON l.farmer_id = f.id
+        LEFT JOIN users b ON r.buyer_id = b.id
         WHERE r.id = ?
-      `).get(id);
+      `).get(targetId);
 
       if (!reservation) {
         throw new Error('NOT_FOUND: Reservation not found.');
       }
 
-      if (reservation.farmer_id !== req.user.id) {
+      if (Number(reservation.farmer_id) !== Number(req.user.id)) {
         throw new Error('FORBIDDEN: You can only accept or deny reservations for your own produce listings.');
       }
 
@@ -158,10 +163,10 @@ router.put('/:id/status', authenticateToken, requireRole('farmer'), (req, res) =
       const prevStatus = reservation.status;
 
       // 1. Update reservation status
-      db.prepare('UPDATE reservations SET status = ? WHERE id = ?').run(status, id);
+      db.prepare('UPDATE reservations SET status = ? WHERE id = ?').run(status, targetId);
 
       // 2. If denied, restore stock quantity to listing
-      if (status === 'denied' && prevStatus !== 'denied') {
+      if (status === 'denied' && prevStatus !== 'denied' && reservation.listing_id) {
         const restoredQty = reservation.current_listing_qty + reservation.reserved_quantity;
         const newListingStatus = restoredQty >= reservation.initial_quantity ? 'available' : 'partially_reserved';
 
@@ -173,31 +178,33 @@ router.put('/:id/status', authenticateToken, requireRole('farmer'), (req, res) =
       }
 
       // 3. Insert direct system notification message for the buyer
-      const actionText = status === 'accepted' ? 'ACCEPTED ✅' : 'DECLINED ❌';
-      const detailMessage = status === 'accepted'
-        ? `Great news! Farmer ${reservation.farmer_name} has ACCEPTED your reservation of ${reservation.reserved_quantity} ${reservation.unit} for "${reservation.crop_name}". Please contact the farmer to finalize collection/delivery.`
-        : `Farmer ${reservation.farmer_name} has DECLINED your reservation of ${reservation.reserved_quantity} ${reservation.unit} for "${reservation.crop_name}". The reserved stock quantity has been restored to the marketplace.`;
+      if (reservation.buyer_id && reservation.farmer_id) {
+        const actionText = status === 'accepted' ? 'ACCEPTED ✅' : 'DECLINED ❌';
+        const detailMessage = status === 'accepted'
+          ? `Great news! Farmer ${reservation.farmer_name || 'Seller'} has ACCEPTED your reservation of ${reservation.reserved_quantity} ${reservation.unit || 'units'} for "${reservation.crop_name || 'produce'}". Please contact the farmer to finalize collection/delivery.`
+          : `Farmer ${reservation.farmer_name || 'Seller'} has DECLINED your reservation of ${reservation.reserved_quantity} ${reservation.unit || 'units'} for "${reservation.crop_name || 'produce'}". The reserved stock quantity has been restored to the marketplace.`;
 
-      db.prepare(`
-        INSERT INTO messages (farmer_id, buyer_id, listing_id, subject, message)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(
-        req.user.id,
-        reservation.buyer_id,
-        reservation.listing_id,
-        `Order Update: ${actionText} for ${reservation.crop_name}`,
-        detailMessage
-      );
+        db.prepare(`
+          INSERT INTO messages (farmer_id, buyer_id, listing_id, subject, message)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(
+          req.user.id,
+          reservation.buyer_id,
+          reservation.listing_id,
+          `Order Update: ${actionText} for ${reservation.crop_name || 'Produce'}`,
+          detailMessage
+        );
+      }
 
       const updatedReservation = db.prepare(`
         SELECT r.*, 
                l.crop_name, l.unit, l.price as unit_price, l.location as listing_location, l.image_emoji,
                b.name as buyer_name, b.email as buyer_email, b.phone as buyer_phone, b.location as buyer_location
         FROM reservations r
-        JOIN listings l ON r.listing_id = l.id
-        JOIN users b ON r.buyer_id = b.id
+        LEFT JOIN listings l ON r.listing_id = l.id
+        LEFT JOIN users b ON r.buyer_id = b.id
         WHERE r.id = ?
-      `).get(id);
+      `).get(targetId);
 
       return updatedReservation;
     });

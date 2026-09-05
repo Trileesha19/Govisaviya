@@ -61,6 +61,7 @@ export default function FarmerDashboard({ onShowToast }) {
       fetchData();
     } catch (err) {
       onShowToast(err.message || 'Failed to update reservation status.', 'error');
+      fetchData();
     }
   };
 
