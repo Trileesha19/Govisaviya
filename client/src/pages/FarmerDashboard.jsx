@@ -15,7 +15,6 @@ export default function FarmerDashboard({ onShowToast }) {
   const [editingListing, setEditingListing] = useState(null);
 
   const fetchData = async () => {
-    setLoading(true);
     try {
       const [listingsRes, resvRes, msgRes] = await Promise.all([
         apiFetch('/listings'),
@@ -28,7 +27,9 @@ export default function FarmerDashboard({ onShowToast }) {
 
       setMyListings(listingsRes.listings.filter(l => l.farmer_id === userId));
       setReservations(resvRes.reservations || []);
-      setMessages(msgRes.messages || []);
+      // Filter out system order updates so farmer only sees direct buyer inquiries
+      const buyerInquiries = (msgRes.messages || []).filter(m => !m.subject?.startsWith('Order Update:'));
+      setMessages(buyerInquiries);
     } catch (err) {
       console.error('Failed to load farmer dashboard:', err.message);
     } finally {
@@ -38,6 +39,21 @@ export default function FarmerDashboard({ onShowToast }) {
 
   useEffect(() => {
     fetchData();
+
+    // Auto-polling every 4 seconds for live dashboard updates without page refresh
+    const timer = setInterval(() => {
+      fetchData();
+    }, 4000);
+
+    const handleFocus = () => {
+      fetchData();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const handleDeleteListing = async (listingId) => {

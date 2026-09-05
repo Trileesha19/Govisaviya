@@ -54,8 +54,24 @@ export default function Marketplace({ onShowToast, onOpenAuth, onOpenWriteReview
   };
 
   useEffect(() => {
-    setLoading(true);
     Promise.all([fetchListings(), fetchStatsAndReviews()]).finally(() => setLoading(false));
+
+    // Auto-polling every 4 seconds so stock changes update live without page refresh
+    const timer = setInterval(() => {
+      fetchListings();
+      fetchStatsAndReviews();
+    }, 4000);
+
+    const handleFocus = () => {
+      fetchListings();
+      fetchStatsAndReviews();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [searchCrop, selectedLocation, selectedStatus]);
 
   const handleReset = () => {
