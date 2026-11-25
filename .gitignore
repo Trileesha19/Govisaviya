@@ -19,3 +19,10 @@ server/marketplace.db
 Thumbs.db
 .vscode
 .idea
+
+# Local secrets and SQLite sidecar files
+.env.*
+!.env.example
+*.db
+*.db-wal
+*.db-shm

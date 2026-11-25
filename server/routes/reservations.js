@@ -156,17 +156,16 @@ router.put('/:id/status', authenticateToken, requireRole('farmer'), (req, res) =
         throw new Error('FORBIDDEN: You can only accept or deny reservations for your own produce listings.');
       }
 
-      if (reservation.status === status) {
-        throw new Error(`ALREADY_SET: Order is already marked as ${status}.`);
+      if (reservation.status !== 'pending') {
+        const currentStatus = reservation.status === 'denied' ? 'declined' : reservation.status;
+        throw new Error(`STATUS_CONFLICT: This reservation has already been ${currentStatus}. Only pending reservations can be accepted or declined. Refresh to see its latest status.`);
       }
-
-      const prevStatus = reservation.status;
 
       // 1. Update reservation status
       db.prepare('UPDATE reservations SET status = ? WHERE id = ?').run(status, targetId);
 
-      // 2. If denied, restore stock quantity to listing
-      if (status === 'denied' && prevStatus !== 'denied' && reservation.listing_id) {
+      // 2. Restore stock exactly once when a pending reservation is declined.
+      if (status === 'denied' && reservation.listing_id) {
         const restoredQty = reservation.current_listing_qty + reservation.reserved_quantity;
         const newListingStatus = restoredQty >= reservation.initial_quantity ? 'available' : 'partially_reserved';
 
@@ -228,8 +227,8 @@ router.put('/:id/status', authenticateToken, requireRole('farmer'), (req, res) =
     if (err.message.startsWith('FORBIDDEN:')) {
       return res.status(403).json({ error: err.message.replace('FORBIDDEN: ', '') });
     }
-    if (err.message.startsWith('ALREADY_SET:')) {
-      return res.status(400).json({ error: err.message.replace('ALREADY_SET: ', '') });
+    if (err.message.startsWith('STATUS_CONFLICT:')) {
+      return res.status(409).json({ error: err.message.replace('STATUS_CONFLICT: ', '') });
     }
     res.status(500).json({ error: 'Failed to update reservation status.' });
   }

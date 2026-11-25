@@ -1,3 +1,4 @@
+import Modal from './Modal';
 import React, { useState } from 'react';
 import { X, Star, AlertCircle, CheckCircle2, Sprout } from 'lucide-react';
 import { apiFetch } from '../services/api';
@@ -40,23 +41,23 @@ export default function ReviewModal({ farmerId, farmerName, listingId, cropName,
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden relative">
+    <Modal title="Review farmer" onClose={onClose} className="max-w-lg">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-950/60">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 bg-slate-50">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-800">
               <Star className="w-5 h-5 fill-amber-400" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white font-outfit">Review Farmer</h2>
-              <p className="text-xs text-slate-400">Rate produce quality & farmer service</p>
+              <h2 className="text-base font-bold text-[#173f35] font-outfit">Review Farmer</h2>
+              <p className="text-sm text-slate-600">Rate produce quality & farmer service</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+            aria-label="Close dialog"
+            className="p-1.5 rounded-lg text-slate-600 hover:text-[#173f35] hover:bg-slate-100 transition-all"
           >
             <X className="w-5 h-5" />
           </button>
@@ -65,33 +66,35 @@ export default function ReviewModal({ farmerId, farmerName, listingId, cropName,
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           
           {error && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2">
+            <div role="alert" className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-center space-x-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {/* Farmer & Crop Brief */}
-          <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-semibold">Farmer Name:</span>
-              <span className="font-bold text-white">{farmerName}</span>
+          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600 font-semibold">Farmer Name:</span>
+              <span className="font-bold text-[#173f35]">{farmerName}</span>
             </div>
             {cropName && (
-              <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-900">
-                <span className="text-slate-400 font-semibold">Produce:</span>
-                <span className="font-bold text-emerald-400">{cropName}</span>
+              <div className="flex items-center justify-between text-sm pt-1 border-t border-slate-200">
+                <span className="text-slate-600 font-semibold">Produce:</span>
+                <span className="font-bold text-emerald-700">{cropName}</span>
               </div>
             )}
           </div>
 
           {/* Interactive Star Rating */}
           <div className="space-y-1.5 text-center">
-            <label className="text-xs font-semibold text-slate-300">Select Rating (1 to 5 Stars):</label>
+            <label className="text-sm font-semibold text-slate-700">Select Rating (1 to 5 Stars):</label>
             <div className="flex justify-center space-x-2 pt-1">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
+                  aria-label={`${star} ${star === 1 ? 'star' : 'stars'}`}
+                  aria-pressed={rating === star}
                   type="button"
                   onClick={() => setRating(star)}
                   onMouseEnter={() => setHoverRating(star)}
@@ -101,14 +104,14 @@ export default function ReviewModal({ farmerId, farmerName, listingId, cropName,
                   <Star
                     className={`w-7 h-7 transition-colors ${
                       star <= (hoverRating || rating)
-                        ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]'
-                        : 'text-slate-600'
+                        ? 'text-amber-800 fill-amber-400 '
+                        : 'text-slate-500'
                     }`}
                   />
                 </button>
               ))}
             </div>
-            <p className="text-xs text-amber-400 font-bold pt-1">
+            <p className="text-sm text-amber-800 font-bold pt-1">
               {rating === 5 && '⭐⭐⭐⭐⭐ Outstanding / Exceptional'}
               {rating === 4 && '⭐⭐⭐⭐ Very Good Quality'}
               {rating === 3 && '⭐⭐⭐ Good / Average'}
@@ -119,13 +122,15 @@ export default function ReviewModal({ farmerId, farmerName, listingId, cropName,
 
           {/* Review Comment Textarea */}
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-300">Your Review Comment *</label>
+            <label htmlFor="review-comment" className="text-sm font-semibold text-slate-700">Your Review Comment *</label>
             <textarea
               rows="3"
+              maxLength={1500}
+              id="review-comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="e.g. Excellent fresh carrots harvested from Lovers Leap farm. Fast response and reliable farmer!"
-              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#173f35] placeholder-slate-500 focus:outline-none focus:border-amber-600"
               required
             />
           </div>
@@ -135,22 +140,20 @@ export default function ReviewModal({ farmerId, farmerName, listingId, cropName,
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="flex-[2] py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50"
+              className="flex-[2] py-2.5 rounded-xl text-sm font-bold bg-[#18764b] hover:bg-[#125d3b] text-white shadow-lg  transition-all disabled:opacity-50"
             >
               {submitting ? 'Publishing Review...' : 'Submit Farmer Review'}
             </button>
           </div>
 
         </form>
-
-      </div>
-    </div>
+    </Modal>
   );
 }

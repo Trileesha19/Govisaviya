@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import Marketplace from './pages/Marketplace';
@@ -9,12 +9,15 @@ import ReviewModal from './components/ReviewModal';
 import FarmerReviewsModal from './components/FarmerReviewsModal';
 import ContactFarmerModal from './components/ContactFarmerModal';
 import Toast from './components/Toast';
-import { Sprout, Heart, ShieldCheck, Globe, MapPin } from 'lucide-react';
+import { Sprout, MapPin } from 'lucide-react';
 
 function MainApp() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('marketplace');
   const [authModalMode, setAuthModalMode] = useState(null); // null, 'login', 'register'
+  const [authRole, setAuthRole] = useState('buyer');
+  const openAuth = (mode, role = 'buyer') => { setAuthRole(role); setAuthModalMode(mode); };
+  useEffect(() => { if (!user) setActiveTab('marketplace'); }, [user]);
   
   // Modals State
   const [reviewModalData, setReviewModalData] = useState(null);
@@ -22,30 +25,33 @@ function MainApp() {
   const [contactFarmerModalData, setContactFarmerModalData] = useState(null);
 
   const [toast, setToast] = useState(null);
+  const toastTimer = useRef();
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
-    setTimeout(() => {
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => {
       setToast(null);
     }, 4000);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500 selection:text-white">
+    <div className="app-shell">
       
-      {/* Navigation Bar */}
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onOpenAuthModal={(mode) => setAuthModalMode(mode)}
+        onOpenAuthModal={openAuth}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      <main id="main-content" className="page-container">
         {activeTab === 'marketplace' && (
           <Marketplace
             onShowToast={showToast}
-            onOpenAuth={(mode) => setAuthModalMode(mode)}
+            onOpenAuth={openAuth}
             onOpenWriteReviewModal={(data) => {
               if (!user) {
                 showToast('Please log in or register as a Buyer to rate Sri Lankan farmers.', 'error');
@@ -78,45 +84,15 @@ function MainApp() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-950/90 py-8 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <Sprout className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="font-extrabold text-lg text-white font-outfit">
-                  Govisaviya <span className="text-emerald-400">LK</span>
-                </span>
-                <p className="text-xs text-slate-400">UN SDG 2 Zero Hunger — Sri Lanka Local Produce Platform</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-slate-400">
-              <span className="flex items-center space-x-1">
-                <MapPin className="w-3.5 h-3.5 text-rose-400" />
-                <span>Nuwara Eliya • Dambulla • Polonnaruwa • Jaffna • Anuradhapura</span>
-              </span>
-            </div>
-
-          </div>
-
-          <div className="border-t border-slate-900 pt-4 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
-            <span>© 2026 Local Farmer-to-Buyer Marketplace. Direct & Fair Trade.</span>
-            <span className="flex items-center space-x-1 text-slate-400">
-              <span>Supporting Sri Lankan Agriculture & Food Security</span>
-            </span>
-          </div>
-        </div>
+      <footer className="site-footer">
+        <div className="footer-inner"><div className="footer-brand"><Sprout size={28} /><div><strong>Govisaviya <span>LK</span></strong><p>Good food brings us closer.</p></div></div><div className="footer-links"><MapPin size={16} /><span>Grown in Sri Lanka. Shared with our community.</span></div></div>
+        <div className="footer-bottom"><span>© {new Date().getFullYear()} Govisaviya LK</span><span>Connecting local farmers and buyers · Supporting SDG 2</span></div>
       </footer>
-
       {/* Auth Modal */}
       {authModalMode && (
         <AuthModal
           initialMode={authModalMode}
+          initialRole={authRole}
           onClose={() => setAuthModalMode(null)}
           onSuccess={(msg) => showToast(msg)}
         />
